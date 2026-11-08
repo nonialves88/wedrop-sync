@@ -1,0 +1,26 @@
+[Unit]
+Description=WeDrop — sincronização de estoque (Shopee, ML1, ML2)
+Documentation=file:/home/box/.wedrop/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=box
+Group=box
+WorkingDirectory=/home/box/.wedrop
+EnvironmentFile=/home/box/.wedrop/creds.env
+Environment=PYTHONUNBUFFERED=1
+Environment=WEDROP_HOME=/home/box/.wedrop
+# Aviso no celular/chat (opcional, escolha um):
+#Environment=WEDROP_WEBHOOK_URL=https://hooks.slack.com/services/...
+#Environment=WEDROP_NOTIFY_COMMAND=telegram-send --stdin
+ExecStart=/usr/bin/python3 -m wedrop_sync run --quiet
+# Rodada completa pode passar de 9h: não cortar no meio.
+TimeoutStartSec=infinity
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+
+[Install]
+WantedBy=multi-user.target

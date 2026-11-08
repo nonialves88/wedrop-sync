@@ -1,0 +1,65 @@
+{
+  "dashboardUrl": "https://dash.wedrop.com.br/my_items",
+  "chrome": {
+    "port": 9222,
+    "profileDir": "data/chrome-profile",
+    "executable": "",
+    "startUrl": "https://dash.wedrop.com.br/my_items"
+  },
+  "run": {
+    "criterion": "low",
+    "lowStockMax": 10,
+    "dryRun": false,
+    "channelDelayMs": 4000,
+    "betweenChannelsMs": 3000,
+    "retries": 1,
+    "retryDelayMs": 15000,
+    "stepTimeoutMs": 90000,
+    "selectionTimeoutMs": 1800000,
+    "updateStartTimeoutMs": 120000,
+    "keepChromeOpen": true
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8787
+  },
+  "channels": [
+    {
+      "key": "shopee",
+      "name": "Shopee",
+      "id": "10001",
+      "aliases": [],
+      "active": true,
+      "note": "",
+      "marketplace": "shopee"
+    },
+    {
+      "key": "ml-1",
+      "name": "Mercado Livre — conta 1",
+      "id": "10002",
+      "aliases": [],
+      "active": true,
+      "note": "",
+      "marketplace": "mercadolivre"
+    },
+    {
+      "key": "ml-2",
+      "name": "Mercado Livre — conta 2",
+      "id": "10003",
+      "aliases": [],
+      "active": true,
+      "note": "",
+      "marketplace": "mercadolivre"
+    },
+    {
+      "key": "bling",
+      "name": "Bling",
+      "id": "10004",
+      "aliases": [],
+      "active": false,
+      "note": "",
+      "marketplace": "bling"
+    }
+  ],
+  "_aviso": "EXEMPLO com IDs fictícios. Copie para config/channels.json (Node) e/ou ~/.wedrop/channels.json (Python) e use os IDs reais. Esses arquivos reais NUNCA vão para o git; a versão do repositório fica cifrada em config/channels.enc."
+}

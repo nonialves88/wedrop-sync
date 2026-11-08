@@ -1,0 +1,14 @@
+[Unit]
+Description=Dispara a sincronização de estoque WeDrop às 6h e 18h (America/Recife)
+
+[Timer]
+# systemd >= 240 respeita o fuso; em versões antigas use TZ no serviço.
+Timezone=America/Recife
+OnCalendar=*-*-* 06,18:07:00
+# Se a máquina estava desligada no horário, roda assim que ligar.
+Persistent=true
+AccuracySec=1min
+Unit=wedrop-sync.service
+
+[Install]
+WantedBy=timers.target

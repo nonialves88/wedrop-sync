@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wedrop-sync"
+version = "2.0.0"
+description = "Sincronização de estoque WeDrop via API oficial do painel (sem navegador)"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+wedrop-sync = "wedrop_sync.cli:main"
+
+[tool.setuptools]
+packages = ["wedrop_sync"]

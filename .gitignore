@@ -1,0 +1,22 @@
+node_modules/
+data/chrome-profile/
+data/*.log
+data/logs/
+*.tmp
+
+# credenciais nunca devem entrar no versionamento
+.env
+*.env
+
+# ---- repositório PÚBLICO: nada local/real entra aqui ----
+data/
+state/
+config/channels.json
+channels.json
+creds.env
+*.env
+.env*
+last-run*
+*.log
+# o cofre cifrado (config/channels.enc) É versionado de propósito
+!config/channels.enc

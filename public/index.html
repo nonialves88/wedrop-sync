@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sincronizar Estoque — WeDrop</title>
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233454d1'/%3E%3Cpath d='M9 17l4 4 9-9' stroke='%23fff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="head">
+        <div>
+          <div class="eyebrow">WeDrop · Atualização de estoque em massa</div>
+          <h1>Sincronizar estoque</h1>
+          <p class="sub">
+            Um clique roda a rotina em cada canal ativo: seleciona o canal, aplica o filtro, espera a verificação e
+            dispara a atualização em massa. A sessão já logada do seu Chrome é reaproveitada — nenhuma senha fica salva aqui.
+          </p>
+        </div>
+        <div class="head-status">
+          <span class="pill" id="pill-status" data-state="idle">Pronto</span>
+          <span class="pill ghost" id="pill-chrome" title="Chrome com depuração remota">Chrome…</span>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="field">
+          <div class="field-label">Critério de seleção</div>
+          <div class="choice" role="radiogroup" aria-label="Critério de sincronização">
+            <button type="button" data-criterion="low" aria-pressed="true">Estoque baixo</button>
+            <button type="button" data-criterion="all" aria-pressed="false">Todos mapeados</button>
+          </div>
+          <div class="limit-row" id="limit-row">
+            <label for="limit-input">Limite de unidades ≤</label>
+            <input id="limit-input" type="number" min="1" step="1" value="10" inputmode="numeric" />
+            <span class="hint-inline">padrão do painel: 10</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Canais</div>
+          <div class="channels" id="channels"></div>
+          <p class="hint-inline" id="channels-hint"></p>
+        </div>
+
+        <div class="field inline">
+          <label class="switch">
+            <input type="checkbox" id="dry-run" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-label">
+              <strong>Dry-run</strong>
+              <em>aplica o filtro e mostra quantos seriam atualizados, sem clicar em Atualizar</em>
+            </span>
+          </label>
+        </div>
+
+        <div class="actions-row">
+          <button type="button" class="primary" id="run-btn">Sincronizar agora</button>
+          <button type="button" class="secondary" id="cancel-btn" disabled>Cancelar</button>
+          <span class="run-note" id="run-note"></span>
+        </div>
+      </section>
+
+      <section class="panel" id="live-panel" hidden>
+        <div class="panel-head">
+          <h2>Execução</h2>
+          <span class="mono" id="run-meta"></span>
+        </div>
+        <div class="targets" id="targets"></div>
+        <div class="log" id="log" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" id="history-panel" hidden>
+        <div class="panel-head">
+          <h2>Últimas execuções</h2>
+          <button type="button" class="link" id="refresh-history">atualizar</button>
+        </div>
+        <div class="history" id="history"></div>
+      </section>
+
+      <footer class="foot">
+        <span class="mono" id="diagnostics"></span>
+      </footer>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

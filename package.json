@@ -1,0 +1,24 @@
+﻿{
+  "name": "wedrop-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SincronizaÃ§Ã£o de estoque em massa nos canais do painel WeDrop (Shopee + 2 contas Mercado Livre)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "login": "node src/cli.js login",
+    "run": "node src/cli.js run",
+    "map": "node src/cli.js map",
+    "doctor": "node src/cli.js doctor",
+    "calibrate": "node src/cli.js calibrate",
+    "test": "node --test --test-timeout=180000 test/*.test.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.1"
+  }
+}
+
+

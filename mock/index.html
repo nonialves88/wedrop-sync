@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Simulador do painel WeDrop</title>
+    <style>
+      :root { --line: #ddd8cc; --ink: #1c1b18; --dim: #6b665c; --green: #1f7a4d; --accent: #3454d1; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: #f3f1ec; }
+      .top { display: flex; gap: 18px; align-items: center; padding: 14px 22px; background: #fff; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      .brand { font-weight: 800; letter-spacing: -0.01em; }
+      .top label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dim); }
+      select, input { font: inherit; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); }
+      main { padding: 22px; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+      .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 12px; color: var(--dim); }
+      .card b { display: block; font-size: 22px; color: var(--ink); }
+      .bulk { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+      .bulk-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .bulk-head h3 { margin: 0; font-size: 15px; }
+      .bulk-body { display: flex; align-items: flex-end; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+      .bulk-body label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--dim); }
+      .btn { font: 600 13px inherit; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+      .btn-green { font: 700 13px inherit; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--green); background: var(--green); color: #fff; cursor: pointer; }
+      .btn-green:disabled { background: #b8c3bd; border-color: #b8c3bd; cursor: not-allowed; }
+      .status { margin-top: 14px; font-size: 13px; color: var(--dim); min-height: 20px; }
+      .status.err { color: #b3372f; font-weight: 600; }
+      .floating { position: fixed; left: 16px; bottom: 16px; background: #1b1e25; color: #e9e8e3; font-size: 12px; padding: 10px 13px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+      .floating.jobs { left: auto; right: 16px; background: var(--accent); color: #fff; }
+      .modal-backdrop { position: fixed; inset: 0; background: rgba(20,22,27,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; }
+      .modal { background: #fff; border-radius: 14px; padding: 22px; width: min(420px, 92vw); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); }
+      .modal h2 { margin: 0; font-size: 17px; }
+      .modal p { margin: 0; color: var(--dim); font-size: 13.5px; }
+      .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+      .hint { color: var(--dim); font-size: 12.5px; }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <span class="brand">WeDrop · simulado</span>
+      <label>
+        Itens por página
+        <select id="per-page">
+          <option value="10">10 por página</option>
+          <option value="25">25 por página</option>
+          <option value="50">50 por página</option>
+        </select>
+      </label>
+      <label>
+        Selecione o canal de venda
+        <select id="channel">
+          <option value="">Selecione…</option>
+          <option value="10001">Shopee (10001)</option>
+          <option value="10002">LOJA-EXEMPLO (Mercado Livre) — conta 1</option>
+          <option value="10003">LOJA-EXEMPLO (Mercado Livre) — conta 2</option>
+          <option value="10004">Bling (fora do ar)</option>
+        </select>
+      </label>
+    </div>
+
+    <main id="app">
+      <p class="hint">Escolha um canal de venda para carregar o painel.</p>
+    </main>
+
+    <div class="floating" id="autopilot">Atualização de estoque — Shopee · 572/2273</div>
+
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const failChannelId = params.get('fail') ?? '';
+        const itemDelayMs = Number(params.get('speed') ?? 4);
+
+        // ---------- dados simulados (determinísticos por canal) ----------
+        const CHANNELS = {
+          10001: { name: 'Shopee', total: 60 },
+          10002: { name: 'Mercado Livre — conta 1', total: 24 },
+          10003: { name: 'Mercado Livre — conta 2', total: 45 },
+          10004: { name: 'Bling', total: 0 },
+        };
+
+        function seededStocks(seed, total) {
+          let s = seed;
+          const rand = () => {
+            s = (s * 1103515245 + 12345) % 2147483648;
+            return s / 2147483648;
+          };
+          const stocks = [];
+          for (let i = 0; i < total; i += 1) {
+            // mistura de estoque baixo (0–10) com estoque alto (11–200)
+            stocks.push(rand() < 0.4 ? Math.floor(rand() * 11) : 11 + Math.floor(rand() * 190));
+          }
+          return stocks;
+        }
+
+        const DATA = {};
+        for (const [id, meta] of Object.entries(CHANNELS)) {
+          DATA[id] = { ...meta, stocks: seededStocks(Number(id), meta.total) };
+        }
+
+        const state = { channelId: '', criterion: 'none', limit: 10, applied: 0, updates: [] };
+        let applying = false;
+        let timer = null;
+
+        const app = document.getElementById('app');
+
+        function renderPanel(channelId) {
+          const data = DATA[channelId];
+          if (!data) {
+            app.innerHTML = '<p class="hint">Canal indisponível.</p>';
+            return;
+          }
+          const mapped = data.total;
+          app.innerHTML = `
+            <section class="cards">
+              <div class="card">Total<b>${data.total}</b></div>
+              <div class="card">Mapeados<b>${mapped}</b></div>
+              <div class="card">Não mapeado<b>0</b></div>
+            </section>
+            <section class="bulk" id="bulk">
+              <div class="bulk-head">
+                <h3>Atualização de Estoque em Massa</h3>
+                <button class="btn-green" id="update-btn" disabled>Atualizar</button>
+              </div>
+              <div class="bulk-body">
+                <label>
+                  Seleção
+                  <select id="criterion">
+                    <option value="none" selected>Nenhuma</option>
+                    <option value="all">Todos mapeados</option>
+                    <option value="low">Estoque baixo</option>
+                    <option value="custom">Customizado</option>
+                  </select>
+                </label>
+                <label id="limit-wrap" style="display:none">
+                  Até (unidades)
+                  <input type="number" id="limit-input" value="10" min="0" step="1" />
+                </label>
+                <button class="btn" id="apply-btn">Aplicar</button>
+              </div>
+              <div class="status" id="bulk-status"></div>
+            </section>
+          `;
+
+          const criterionSel = document.getElementById('criterion');
+          const limitWrap = document.getElementById('limit-wrap');
+          const limitInput = document.getElementById('limit-input');
+          const applyBtn = document.getElementById('apply-btn');
+          const updateBtn = document.getElementById('update-btn');
+          const statusEl = document.getElementById('bulk-status');
+
+          criterionSel.addEventListener('change', () => {
+            state.criterion = criterionSel.value;
+            limitWrap.style.display = criterionSel.value === 'low' || criterionSel.value === 'custom' ? 'flex' : 'none';
+            updateBtn.disabled = true;
+            statusEl.textContent = '';
+            statusEl.classList.remove('err');
+            state.applied = 0;
+          });
+
+          limitInput.addEventListener('input', () => {
+            state.limit = Number(limitInput.value) || 0;
+          });
+
+          applyBtn.addEventListener('click', () => {
+            if (applying) return;
+            statusEl.classList.remove('err');
+            updateBtn.disabled = true;
+            state.applied = 0;
+
+            const criterion = criterionSel.value;
+            if (criterion === 'none') {
+              statusEl.textContent = '0 selecionados';
+              return;
+            }
+            if (failChannelId === channelId && !sessionStorage.getItem(`failed-${channelId}`)) {
+              // injeta uma falha só na primeira tentativa, para testar o retry
+              sessionStorage.setItem(`failed-${channelId}`, '1');
+              applying = true;
+              statusEl.textContent = 'Verificando 0/' + mapped + ' (0%)';
+              setTimeout(() => {
+                applying = false;
+                statusEl.classList.add('err');
+                statusEl.textContent = 'Erro ao aplicar seleção: resposta inválida do servidor.';
+              }, 220);
+              return;
+            }
+
+            applying = true;
+            let index = 0;
+            const stocks = data.stocks;
+            let selected = 0;
+
+            const step = () => {
+              const chunk = Math.max(1, Math.round(Math.max(1, mapped) / 40));
+              for (let i = 0; i < chunk && index < mapped; i += 1) {
+                const qty = stocks[index] ?? 0;
+                if (criterion === 'all' || qty <= state.limit) selected += 1;
+                index += 1;
+              }
+              const pct = mapped ? Math.round((index / mapped) * 100) : 100;
+              if (index < mapped) {
+                statusEl.textContent = `Verificando ${index}/${mapped} (${pct}%)`;
+                timer = setTimeout(step, itemDelayMs * chunk);
+              } else {
+                applying = false;
+                state.applied = selected;
+                statusEl.textContent = `${selected} selecionados`;
+                updateBtn.disabled = false;
+              }
+            };
+            step();
+          });
+
+          updateBtn.addEventListener('click', () => {
+            const selected = state.applied;
+            if (!selected) return;
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop';
+            backdrop.innerHTML = `
+              <div class="modal" role="dialog" aria-label="Confirmar Atualização em Massa">
+                <h2>Confirmar Atualização em Massa</h2>
+                <p><b>${selected}</b> anúncio(s) serão atualizados no canal ${DATA[channelId].name}.</p>
+                <p>Filtro aplicado: ${labelFor(criterionSel.value)}${criterionSel.value === 'all' ? '' : ` (≤ ${state.limit} unidades)`}</p>
+                <div class="modal-actions">
+                  <button class="btn" id="cancel-update">Cancelar</button>
+                  <button class="btn-green" id="confirm-update">Iniciar Atualização</button>
+                </div>
+              </div>
+            `;
+            document.body.append(backdrop);
+            backdrop.querySelector('#cancel-update').addEventListener('click', () => backdrop.remove());
+            backdrop.querySelector('#confirm-update').addEventListener('click', () => {
+              backdrop.remove();
+              state.updates.push({ channelId, count: selected, criterion: criterionSel.value, limit: state.limit, at: Date.now() });
+              startJobIndicator(selected);
+            });
+          });
+        }
+
+        function labelFor(value) {
+          return { none: 'Nenhuma', all: 'Todos mapeados', low: 'Estoque baixo', custom: 'Customizado' }[value] ?? value;
+        }
+
+        const jobEl = document.createElement('div');
+        jobEl.className = 'floating jobs';
+        jobEl.style.display = 'none';
+        document.body.append(jobEl);
+
+        function startJobIndicator(total) {
+          let ok = 0;
+          let err = 0;
+          let queue = total;
+          jobEl.style.display = 'block';
+          const paint = () => {
+            jobEl.textContent = `ok ${ok} · erro ${err} · fila ${queue} · total ${total}`;
+          };
+          paint();
+          const tick = setInterval(() => {
+            if (queue <= 0) {
+              clearInterval(tick);
+              return;
+            }
+            const batch = Math.min(queue, 3);
+            queue -= batch;
+            for (let i = 0; i < batch; i += 1) {
+              if (Math.random() < 0.02) err += 1;
+              else ok += 1;
+            }
+            paint();
+          }, 90);
+        }
+
+        document.getElementById('channel').addEventListener('change', (event) => {
+          const id = event.target.value;
+          state.channelId = id;
+          app.innerHTML = '<p class="hint">Carregando painel do canal…</p>';
+          if (timer) clearTimeout(timer);
+          applying = false;
+          if (!id) return;
+          setTimeout(() => renderPanel(id), 180);
+        });
+
+        // API de apoio aos testes automatizados
+        window.__mock = {
+          state,
+          data: DATA,
+          expected(channelId, criterion, limit) {
+            const data = DATA[channelId];
+            if (!data) return 0;
+            if (criterion === 'all') return data.total;
+            if (criterion === 'none') return 0;
+            return data.stocks.filter((s) => s <= limit).length;
+          },
+          updates: () => state.updates,
+        };
+      })();
+    </script>
+  </body>
+</html>

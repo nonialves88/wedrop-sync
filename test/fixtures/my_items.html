@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Meus Anúncios — fixture de calibração</title>
+    <!--
+      Estrutura INTENCIONALMENTE diferente do mock/index.html (Bootstrap-like,
+      h4 em card-header, selects com value numérico). Serve para provar que a
+      automação não depende de uma única forma de DOM.
+    -->
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 18px; background: #f6f7f9; }
+      .card { background: #fff; border: 1px solid #dde1e6; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+      .card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eef0f3; padding-bottom: 10px; margin-bottom: 12px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+      .btn { border: 1px solid #ced4da; background: #fff; border-radius: 6px; padding: 7px 13px; font: inherit; cursor: pointer; }
+      .btn-primary { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+      .btn-success { background: #198754; border-color: #198754; color: #fff; }
+      select, input { font: inherit; padding: 6px 8px; border: 1px solid #ced4da; border-radius: 6px; }
+      .muted { color: #6c757d; }
+      .stat { flex: 1; min-width: 120px; background: #fff; border: 1px solid #dde1e6; border-radius: 8px; padding: 10px 12px; }
+      .stat b { display: block; font-size: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="row">
+        <label>
+          Por página
+          <select id="porpagina">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <label>
+          Selecione o canal de venda
+          <select id="canal" name="marketplace">
+            <option value="">Selecione uma integração</option>
+            <option value="10001">Shopee · Loja principal</option>
+            <option value="10002" selected>LOJA-EXEMPLO</option>
+            <option value="10003">LOJA-EXEMPLO</option>
+            <option value="10004">Bling</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 14px">
+      <div class="stat">Total<b>794</b></div>
+      <div class="stat">Mapeados<b>794</b></div>
+      <div class="stat">Não mapeado<b>0</b></div>
+    </div>
+
+    <div class="card" id="bloco-massa">
+      <div class="card-header">
+        <h4 style="margin: 0">Atualização de Estoque em Massa</h4>
+        <button type="button" class="btn btn-success" id="btn-atualizar">Atualizar</button>
+      </div>
+      <form class="row">
+        <label>
+          Seleção
+          <select id="sel-filtro" name="filtro">
+            <option value="0">Nenhuma</option>
+            <option value="1">Todos mapeados</option>
+            <option value="2" selected>Estoque baixo</option>
+            <option value="3">Customizado</option>
+          </select>
+        </label>
+        <label>
+          Até (unidades)
+          <input type="number" id="limite" name="limite" value="10" min="0" step="1" />
+        </label>
+        <button type="button" class="btn btn-primary" id="btn-aplicar">Aplicar</button>
+      </form>
+      <p class="muted" id="resultado-filtro">167 selecionados</p>
+    </div>
+
+    <div style="position: fixed; left: 12px; bottom: 12px; background: #212529; color: #fff; padding: 9px 12px; border-radius: 8px; font-size: 12px">
+      Atualização de estoque — Shopee · 572/2273
+    </div>
+  </body>
+</html>

@@ -1,0 +1,149 @@
+name: WeDrop Sync
+
+# 06:00 e 18:00 em Fortaleza/Recife (UTC-3) = 09:00 e 21:00 UTC.
+# O repositório é PÚBLICO e, portanto, os logs também: nada sensível é impresso.
+# IDs vêm do cofre cifrado (config/channels.enc); credenciais, dos Secrets.
+on:
+  schedule:
+    - cron: "0 9 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      channels:
+        description: "Quais canais"
+        type: choice
+        default: all
+        options: [all, shopee, ml1, ml2]
+      mode:
+        description: "simple = só estoque baixo · complete = todos os mapeados"
+        type: choice
+        default: simple
+        options: [simple, complete]
+      dry_run:
+        description: "Simulação: monta a fila e não envia nada"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: sync-${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350 # teto do GitHub é 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Contas do mesmo marketplace dividem o rate limit: ficam no mesmo job, em sequência.
+          - { lane: shopee, only: "shopee" }
+          - { lane: mercadolivre, only: "ml1,ml2" }
+    concurrency:
+      group: wedrop-${{ matrix.lane }}
+      cancel-in-progress: false
+    env:
+      PYTHONPATH: api-sync
+      PYTHONUNBUFFERED: "1"
+      WEDROP_HOME: ${{ runner.temp }}/wedrop
+      WEDROP_CHANNELS_FILE: ${{ runner.temp }}/channels.json
+      ZAPI_INSTANCE: ${{ secrets.ZAPI_INSTANCE }}
+      ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
+      ZAPI_CLIENT_TOKEN: ${{ secrets.ZAPI_CLIENT_TOKEN }}
+      ALERT_PHONE: ${{ secrets.ALERT_PHONE }}
+    steps:
+      - name: Escolher canais deste job
+        id: pick
+        env:
+          SELECTED: ${{ inputs.channels || 'all' }}
+          LANE_ONLY: ${{ matrix.only }}
+        run: |
+          if [ "$SELECTED" = "all" ]; then ONLY="$LANE_ONLY"
+          elif [[ ",$LANE_ONLY," == *",$SELECTED,"* ]]; then ONLY="$SELECTED"
+          else ONLY=""; fi
+          if [ -z "$ONLY" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "nada a fazer neste job"
+          else echo "skip=false" >> "$GITHUB_OUTPUT"; echo "only=$ONLY" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.pick.outputs.skip == 'false'
+
+      - uses: actions/setup-python@v5
+        if: steps.pick.outputs.skip == 'false'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: api-sync/requirements.txt
+
+      - name: Instalar dependências
+        if: steps.pick.outputs.skip == 'false'
+        run: pip install -r api-sync/requirements.txt
+
+      - name: Abrir cofre e mascarar tudo que é sensível
+        if: steps.pick.outputs.skip == 'false'
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+          WEDROP_EMAIL: ${{ secrets.WEDROP_EMAIL }}
+          WEDROP_PASSWORD: ${{ secrets.WEDROP_PASSWORD }}
+        run: |
+          # máscaras ANTES de qualquer saída
+          for v in "$WEDROP_EMAIL" "$WEDROP_PASSWORD" "$ZAPI_INSTANCE" "$ZAPI_TOKEN" "$ZAPI_CLIENT_TOKEN" "$ALERT_PHONE"; do
+            [ -n "$v" ] && echo "::add-mask::$v"
+          done
+          python -m wedrop_sync.vault decrypt config/channels.enc "$WEDROP_CHANNELS_FILE"
+          python - <<'PY'
+          import json, os
+          for c in json.load(open(os.environ["WEDROP_CHANNELS_FILE"]))["channels"]:
+              print(f"::add-mask::{c['id']}")
+              print(f"::add-mask::{c.get('name','')}")
+          PY
+
+      - name: Sincronizar
+        id: run
+        if: steps.pick.outputs.skip == 'false'
+        env:
+          WEDROP_EMAIL: ${{ secrets.WEDROP_EMAIL }}
+          WEDROP_PASSWORD: ${{ secrets.WEDROP_PASSWORD }}
+          WEDROP_NOTIFY_COMMAND: python api-sync/deploy/zapi_notify.py
+          ONLY: ${{ steps.pick.outputs.only }}
+          MODE: ${{ inputs.mode || vars.SYNC_MODE || 'simple' }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          EXTRA=""
+          [ "$MODE" = "complete" ] && EXTRA="$EXTRA --all"
+          [ "$DRY" = "true" ] && EXTRA="$EXTRA --dry-run"
+          set +e
+          # toda a saída vai para arquivo: o log público mostra só o código de saída
+          python -m wedrop_sync run --only "$ONLY" $EXTRA --quiet > "$RUNNER_TEMP/run.out" 2>&1
+          CODE=$?
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "lane=${{ matrix.lane }} modo=$MODE saída=$CODE (0 ok · 2 ok com aviso · 3 login · 4 já rodando)"
+          case "$CODE" in 0|2|4) exit 0 ;; *) exit "$CODE" ;; esac
+
+      - name: Guardar relatório CIFRADO
+        if: always() && steps.pick.outputs.skip == 'false'
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: |
+          mkdir -p out
+          cp "$RUNNER_TEMP/run.out" "$WEDROP_HOME/run.out" 2>/dev/null || true
+          tar -czf "$RUNNER_TEMP/report.tgz" -C "$WEDROP_HOME" . 2>/dev/null || true
+          python -m wedrop_sync.vault encrypt "$RUNNER_TEMP/report.tgz" "out/report-${{ matrix.lane }}.enc"
+
+      - name: Enviar relatório cifrado (7 dias)
+        if: always() && steps.pick.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.lane }}-${{ github.run_id }}
+          path: out/report-${{ matrix.lane }}.enc
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Avisar no WhatsApp se a rodada quebrou
+        if: always() && steps.pick.outputs.skip == 'false'
+        env:
+          CODE: ${{ steps.run.outputs.code }}
+        run: |
+          # 0/2/4 = ok · 3 = o próprio sincronizador já avisou (login). Resto = quebra.
+          case "$CODE" in 0|2|3|4) exit 0 ;; esac
+          echo "⚠️ Sync WeDrop (${{ matrix.lane }}) quebrou antes de terminar (saída '${CODE:-n/d}'). Veja: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            | python api-sync/deploy/zapi_notify.py

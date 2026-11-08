@@ -1,0 +1,10 @@
+# Alternativa ao systemd: crontab do usuário `box`.
+# O log é gravado pelo próprio script em <home>/last-run.log;
+# aqui só redirecionamos o stdout (que em --quiet traz apenas avisos).
+CRON_TZ=America/Recife
+
+# 6h07 e 18h07 (o "7" evita a corrida de todo mundo às 6h em ponto)
+7 6,18 * * * cd /home/box/.wedrop && WEDROP_HOME=/home/box/.wedrop /usr/bin/python3 -m wedrop_sync run --quiet >> /home/box/.wedrop/cron-out.log 2>> /home/box/.wedrop/cron-err.log
+
+# Conferência semanal do catálogo completo (todos os mapeados da Shopee), domingo 3h
+0 3 * * 0 cd /home/box/.wedrop && WEDROP_HOME=/home/box/.wedrop WEDROP_ALL=1 /usr/bin/python3 -m wedrop_sync run --only shopee --quiet >> /home/box/.wedrop/cron-out.log 2>> /home/box/.wedrop/cron-err.log

@@ -1,0 +1,20 @@
+name: Keepalive
+
+# Em repositório público o GitHub DESATIVA workflows agendados após 60 dias sem
+# atividade no repositório. Este job reativa o sync todo dia 1º.
+on:
+  schedule:
+    - cron: "0 12 1 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reativar workflow de sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/sync.yml/enable"
