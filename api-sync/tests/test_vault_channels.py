@@ -77,9 +77,32 @@ class ChannelsTest(unittest.TestCase):
         self.assertTrue(demo)
         self.assertTrue(all(c.integration_id >= 10000 for c in channels.values()))
 
-    def test_arquivo_apontado_mas_inexistente_e_erro(self):
-        with self.assertRaises(config.ConfigError):
-            config.load_channels({"WEDROP_CHANNELS_FILE": "/nao/existe.json"})
+    def test_arquivo_inexistente_nao_quebra_o_import_mas_trava_a_rodada(self):
+        # o cofre roda antes de o channels.json existir: import não pode falhar
+        env = {"WEDROP_CHANNELS_FILE": "/nao/existe.json"}
+        _, _, _, demo = config.load_channels(env)
+        self.assertTrue(demo)
+        original = config.USING_DEMO_CHANNELS
+        config.USING_DEMO_CHANNELS = True
+        try:
+            with self.assertRaises(config.ConfigError) as ctx:
+                config.require_real_channels(env)
+            self.assertIn("não existe", str(ctx.exception))
+        finally:
+            config.USING_DEMO_CHANNELS = original
+
+    def test_vault_roda_com_variavel_apontando_para_arquivo_futuro(self):
+        import os, subprocess, sys
+        with tempfile.TemporaryDirectory() as tmp:
+            src, enc, out = Path(tmp, "c.json"), Path(tmp, "c.enc"), Path(tmp, "futuro.json")
+            src.write_text('{"channels": []}', encoding="utf-8")
+            vault.encrypt_file(src, enc, KEY)
+            env = dict(os.environ, VAULT_KEY=KEY, WEDROP_CHANNELS_FILE=str(out),
+                       PYTHONPATH=str(Path(__file__).resolve().parents[1]))
+            done = subprocess.run([sys.executable, "-m", "wedrop_sync.vault", "decrypt", str(enc), str(out)],
+                                  env=env, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertTrue(out.exists())
 
     def test_json_invalido(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -49,7 +49,6 @@ jobs:
       PYTHONPATH: api-sync
       PYTHONUNBUFFERED: "1"
       WEDROP_HOME: /tmp/wedrop
-      WEDROP_CHANNELS_FILE: /tmp/channels.json
       ZAPI_INSTANCE: ${{ secrets.ZAPI_INSTANCE }}
       ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
       ZAPI_CLIENT_TOKEN: ${{ secrets.ZAPI_CLIENT_TOKEN }}
@@ -92,8 +91,10 @@ jobs:
           for v in "$WEDROP_EMAIL" "$WEDROP_PASSWORD" "$ZAPI_INSTANCE" "$ZAPI_TOKEN" "$ZAPI_CLIENT_TOKEN" "$ALERT_PHONE"; do
             [ -n "$v" ] && echo "::add-mask::$v"
           done
-          python -m wedrop_sync.vault decrypt config/channels.enc "$WEDROP_CHANNELS_FILE"
-          python - <<'PY'
+          python -m wedrop_sync.vault decrypt config/channels.enc /tmp/channels.json
+          # só agora a variável passa a existir para os passos seguintes
+          echo "WEDROP_CHANNELS_FILE=/tmp/channels.json" >> "$GITHUB_ENV"
+          WEDROP_CHANNELS_FILE=/tmp/channels.json python - <<'PY'
           import json, os
           for c in json.load(open(os.environ["WEDROP_CHANNELS_FILE"]))["channels"]:
               print(f"::add-mask::{c['id']}")
@@ -128,8 +129,11 @@ jobs:
           VAULT_KEY: ${{ secrets.VAULT_KEY }}
         run: |
           mkdir -p out
-          cp "$RUNNER_TEMP/run.out" "$WEDROP_HOME/run.out" 2>/dev/null || true
-          tar -czf "$RUNNER_TEMP/report.tgz" -C "$WEDROP_HOME" . 2>/dev/null || true
+          # se o job caiu antes de sincronizar, não há o que guardar (e não mascara o erro real)
+          [ -f "$RUNNER_TEMP/run.out" ] || { echo "sem relatório a guardar"; exit 0; }
+          mkdir -p "$WEDROP_HOME"
+          cp "$RUNNER_TEMP/run.out" "$WEDROP_HOME/run.out"
+          tar -czf "$RUNNER_TEMP/report.tgz" -C "$WEDROP_HOME" .
           python -m wedrop_sync.vault encrypt "$RUNNER_TEMP/report.tgz" "out/report-${{ matrix.lane }}.enc"
 
       - name: Enviar relatório cifrado (7 dias)

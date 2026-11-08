@@ -103,8 +103,8 @@ def load_channels(
             raise ConfigError("channels.json inválido: esperado {\"channels\": [...]}")
         channels, order, ignored = _build_channels(items)
         return channels, order, ignored, False
-    if explicit:
-        raise ConfigError(f"{CHANNELS_FILE_ENV} aponta para um arquivo que não existe")
+    # Arquivo ausente NÃO falha no import: o cofre (vault) vive neste pacote e precisa
+    # poder rodar ANTES de o channels.json existir. O erro sai em require_real_channels().
     channels, order, ignored = _build_channels(_DEMO_CHANNELS)
     return channels, order, ignored, True
 
@@ -116,6 +116,8 @@ def require_real_channels(env: Optional[Mapping[str, str]] = None) -> None:
     """Impede rodar contra a API real com IDs de demonstração."""
     env = os.environ if env is None else env
     if USING_DEMO_CHANNELS and env.get(ALLOW_DEMO_ENV) != "1":
+        if env.get(CHANNELS_FILE_ENV):
+            raise ConfigError(f"{CHANNELS_FILE_ENV} aponta para um arquivo que não existe")
         raise ConfigError(
             "nenhum channels.json encontrado: crie <home>/channels.json (veja "
             "config/channels.example.json) ou defina WEDROP_CHANNELS_FILE"
