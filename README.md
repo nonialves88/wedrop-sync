@@ -35,7 +35,8 @@ python scripts/setup_vault.py ~/.wedrop/channels.json    # mostra a senha-mestra
 git add config/channels.enc && git commit -m "cofre" && git push
 ```
 
-2) GitHub → *Settings → Secrets and variables → Actions → New repository secret*:
+2) GitHub → *Settings → Secrets and variables → Actions → New repository secret* (ou, se já
+criou um *Environment* chamado `VAULT_KEY`, cadastre lá — o workflow usa esse environment):
 `VAULT_KEY`, `WEDROP_EMAIL`, `WEDROP_PASSWORD` e (opcional) `ZAPI_INSTANCE`,
 `ZAPI_TOKEN`, `ZAPI_CLIENT_TOKEN`, `ALERT_PHONE` (ex.: `5581999999999`).
 

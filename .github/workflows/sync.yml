@@ -31,6 +31,9 @@ jobs:
   sync:
     name: sync-${{ matrix.lane }}
     runs-on: ubuntu-latest
+    # Os Secrets estão no Environment "VAULT_KEY" (Settings > Environments).
+    # Secrets de environment só chegam ao job que declara o environment.
+    environment: VAULT_KEY
     timeout-minutes: 350 # teto do GitHub é 360
     strategy:
       fail-fast: false
