@@ -48,8 +48,8 @@ jobs:
     env:
       PYTHONPATH: api-sync
       PYTHONUNBUFFERED: "1"
-      WEDROP_HOME: ${{ runner.temp }}/wedrop
-      WEDROP_CHANNELS_FILE: ${{ runner.temp }}/channels.json
+      WEDROP_HOME: /tmp/wedrop
+      WEDROP_CHANNELS_FILE: /tmp/channels.json
       ZAPI_INSTANCE: ${{ secrets.ZAPI_INSTANCE }}
       ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
       ZAPI_CLIENT_TOKEN: ${{ secrets.ZAPI_CLIENT_TOKEN }}
